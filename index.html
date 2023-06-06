@@ -1,0 +1,631 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <script src="http://d3js.org/d3.v7.min.js"></script>
+        <link rel="stylesheet" type="text/css" href="style.css" />
+        <title>Data Visualization Project</title>
+    </head>
+    <body>
+        <select id="graphSelection">
+            <option value="peak">Peak players graph</option>
+            <option value="rating">Rating graph</option>
+            <option value="price">Price graph</option>
+            <option value="personal">Personal graph</option>
+        </select>
+
+        <div class="body">
+            <div id="imageContainer" class="image-container"></div>
+            <div id="chartContainer">
+                <svg id="peakChart"></svg>
+                <svg id="ratingChart" style="display: none"></svg>
+                <svg id="priceChart" style="display: none"></svg>
+                <svg
+                    id="personalChart"
+                    class="personalContainer"
+                    style="display: none"
+                ></svg>
+            </div>
+        </div>
+        <script>
+            d3.json("output.json").then(function (data) {
+                var imageContainer = d3.select("#imageContainer");
+                var margin = { top: 50, right: 50, bottom: 250, left: 125 };
+                var width = 1024 - margin.left - margin.right;
+                var height = 720 - margin.top - margin.bottom;
+
+                var images = imageContainer
+                    .selectAll("img")
+                    .data(data[0].gameInfo)
+                    .enter()
+                    .append("img")
+                    .attr("class", "game-image")
+                    .attr("width", 250)
+                    .attr("height", "auto")
+                    .style("border", "1px solid black")
+                    .attr("src", function (d) {
+                        return d.image;
+                    })
+                    .attr("id", function (d) {
+                        return "image-" + d.appid;
+                    })
+                    .on("click", function (event, d) {
+                        d3.selectAll(".highlighted").classed(
+                            "highlighted",
+                            false
+                        );
+                        d3.select("#bar-" + d.appid).classed(
+                            "highlighted",
+                            true
+                        );
+                        d3.select(this).classed("highlighted", true);
+                    });
+                images.on("click", function (event, d) {
+                    d3.selectAll(".highlighted").classed("highlighted", false);
+                    d3.selectAll(".bar")
+                        .filter(function (bar) {
+                            return bar.appid === d.appid;
+                        })
+                        .classed("highlighted", true);
+                    d3.select(this).classed("highlighted", true);
+                });
+
+                var maxpeak = d3.max(data[0].gameInfo, function (d) {
+                    return d.peak;
+                });
+
+                var x = d3
+                    .scaleBand()
+                    .domain(
+                        data[0].gameInfo.map(function (d) {
+                            return d.name;
+                        })
+                    )
+                    .range([0, width])
+                    .padding(0.1);
+
+                var y = d3
+                    .scaleLinear()
+                    .domain([0, maxpeak])
+                    .range([height, 0]);
+
+                var svg = d3
+                    .select("#peakChart")
+                    .attr("width", width + margin.left + margin.right)
+                    .attr("height", height + margin.top + margin.bottom)
+                    .append("g")
+                    .attr(
+                        "transform",
+                        "translate(" + margin.left + "," + margin.top + ")"
+                    );
+
+                var bars = svg
+                    .selectAll(".bar")
+                    .data(data[0].gameInfo)
+                    .enter()
+                    .append("rect")
+                    .attr("class", "bar")
+                    .attr("x", function (d) {
+                        return x(d.name);
+                    })
+                    .attr("width", x.bandwidth())
+                    .attr("y", height)
+                    .attr("height", 0)
+                    .attr("id", function (d) {
+                        return "bar-" + d.appid;
+                    })
+                    .on("click", function (event, d) {
+                        d3.selectAll(".highlighted").classed(
+                            "highlighted",
+                            false
+                        );
+                        d3.select("#image-" + d.appid).classed(
+                            "highlighted",
+                            true
+                        );
+                        d3.select(this).classed("highlighted", true);
+                    })
+                    .transition()
+                    .duration(1000)
+                    .attr("y", function (d) {
+                        return y(d.peak);
+                    })
+                    .attr("height", function (d) {
+                        return height - y(d.peak);
+                    });
+
+                svg.append("g")
+                    .attr("class", "x-axis")
+                    .attr("transform", "translate(0," + height + ")")
+                    .call(d3.axisBottom(x))
+                    .selectAll("text")
+                    .style("text-anchor", "end")
+                    .attr("transform", "rotate(-45) translate(-10,0)");
+
+                svg.append("g").attr("class", "y-axis").call(d3.axisLeft(y));
+
+                svg.append("text")
+                    .attr("class", "y-axis-label")
+                    .attr("transform", "rotate(-90)")
+                    .attr("x", -height / 2)
+                    .attr("y", -margin.left - 10)
+                    .attr("dy", "1em")
+                    .style("text-anchor", "middle")
+                    .text("Peak players all-time");
+
+                var svgPrice = d3
+                    .select("#priceChart")
+                    .attr("width", width + margin.left + margin.right)
+                    .attr("height", height + margin.top + margin.bottom)
+                    .append("g")
+                    .attr(
+                        "transform",
+                        "translate(" + margin.left + "," + margin.top + ")"
+                    );
+                var maxPrice = d3.max(data[0].gameInfo, function (d) {
+                    return d.price;
+                });
+
+                var yPrice = d3
+                    .scaleLinear()
+                    .domain([0, maxPrice])
+                    .range([height, 0]);
+
+                var barsPrice = svgPrice
+                    .selectAll(".bar")
+                    .data(data[0].gameInfo)
+                    .enter()
+                    .append("g")
+                    .attr("class", "bar")
+                    .attr("transform", function (d) {
+                        return "translate(" + x(d.name) + ",0)";
+                    })
+                    .attr("id", function (d) {
+                        return "bar-" + d.appid;
+                    });
+
+                barsPrice
+                    .append("rect")
+                    .attr("class", "bar")
+                    .attr("id", function (d) {
+                        return "bar-price-" + d.appid;
+                    })
+                    .attr("x", 0)
+                    .attr("width", x.bandwidth())
+                    .attr("y", function (d) {
+                        return yPrice(d.price);
+                    })
+                    .attr("height", function (d) {
+                        return height - yPrice(d.price);
+                    })
+                    .attr("fill", function (d) {
+                        return d.price === 0 ? "" : "rgb(155, 25, 25)";
+                    });
+
+                barsPrice
+                    .filter(function (d) {
+                        if (d.price === 0) {
+                            d.price = maxPrice;
+                            return true;
+                        } else {
+                            return false;
+                        }
+                    })
+                    .append("text")
+                    .text("FREE")
+                    .attr("x", x.bandwidth() / 2)
+                    .attr("y", function (d) {
+                        return yPrice(d.price) + (height - yPrice(d.price)) / 2;
+                    })
+                    .attr("text-anchor", "middle")
+                    .attr("fill", "black")
+                    .attr("transform", function (d) {
+                        return (
+                            "rotate(-90, " +
+                            x.bandwidth() / 2 +
+                            ", " +
+                            (yPrice(d.price) + (height - yPrice(d.price)) / 2) +
+                            ")"
+                        );
+                    })
+                    .style("dominant-baseline", "middle");
+
+                svgPrice
+                    .append("g")
+                    .attr("class", "x-axis")
+                    .attr("transform", "translate(0," + height + ")")
+                    .call(d3.axisBottom(x))
+                    .selectAll("text")
+                    .style("text-anchor", "end")
+                    .attr("transform", "rotate(-45) translate(-10,0)");
+
+                svgPrice
+                    .append("g")
+                    .attr("class", "y-axis")
+                    .call(d3.axisLeft(yPrice));
+
+                svgPrice
+                    .append("text")
+                    .attr("class", "y-axis-label")
+                    .attr("transform", "rotate(-90)")
+                    .attr("x", -height / 2)
+                    .attr("y", -margin.left)
+                    .attr("dy", "1em")
+                    .style("text-anchor", "middle")
+                    .text("Price");
+
+                function midAngle(d) {
+                    return d.startAngle + (d.endAngle - d.startAngle) / 2;
+                }
+
+                var graphSelection = d3.select("#graphSelection");
+                var idImageContainer =
+                    document.getElementById("imageContainer");
+                var idPersonalChart = document.getElementById("personalChart");
+                var textTransitionDuration = 2000;
+                graphSelection.on("change", function () {
+                    var selectedValue = this.value;
+
+                    d3.selectAll("#chartContainer svg").style(
+                        "display",
+                        "none"
+                    );
+
+                    d3.select("#" + selectedValue + "Chart").style(
+                        "display",
+                        "block"
+                    );
+
+                    if (selectedValue === "personal") {
+                        d3.select("#personalChart").selectAll("*").remove();
+                        idImageContainer.style.display = "none";
+                        createPieChart(data, width, height, margin);
+                    } else if (selectedValue === "peak") {
+                        idImageContainer.style.display = "block";
+                        d3.select("#peakChart").select("*").remove();
+                        createPeakChart(data, width, height, margin);
+                    } else if (selectedValue === "rating") {
+                        idImageContainer.style.display = "block";
+                        d3.select("#ratingChart").select("*").remove();
+                        createRatingChart(data, width, height, margin, x, y);
+                    } else {
+                        idImageContainer.style.display = "block";
+                        d3.select("#personalChart").selectAll("*").remove();
+                    }
+                });
+            });
+
+            function createPeakChart(data, width, height, margin) {
+                var maxpeak = d3.max(data[0].gameInfo, function (d) {
+                    return d.peak;
+                });
+
+                var x = d3
+                    .scaleBand()
+                    .domain(
+                        data[0].gameInfo.map(function (d) {
+                            return d.name;
+                        })
+                    )
+                    .range([0, width])
+                    .padding(0.1);
+
+                var y = d3
+                    .scaleLinear()
+                    .domain([0, maxpeak])
+                    .range([height, 0]);
+
+                var svg = d3
+                    .select("#peakChart")
+                    .attr("width", width + margin.left + margin.right)
+                    .attr("height", height + margin.top + margin.bottom)
+                    .append("g")
+                    .attr(
+                        "transform",
+                        "translate(" + margin.left + "," + margin.top + ")"
+                    );
+
+                var bars = svg
+                    .selectAll(".bar")
+                    .data(data[0].gameInfo)
+                    .enter()
+                    .append("rect")
+                    .attr("class", "bar")
+                    .attr("x", function (d) {
+                        return x(d.name);
+                    })
+                    .attr("width", x.bandwidth())
+                    .attr("y", height)
+                    .attr("height", 0)
+                    .attr("id", function (d) {
+                        return "bar-" + d.appid;
+                    })
+                    .on("click", function (event, d) {
+                        d3.selectAll(".highlighted").classed(
+                            "highlighted",
+                            false
+                        );
+                        d3.select("#image-" + d.appid).classed(
+                            "highlighted",
+                            true
+                        );
+                        d3.select(this).classed("highlighted", true);
+                    })
+                    .transition()
+                    .duration(1000)
+                    .attr("y", function (d) {
+                        return y(d.peak);
+                    })
+                    .attr("height", function (d) {
+                        return height - y(d.peak);
+                    });
+
+                svg.append("g")
+                    .attr("class", "x-axis")
+                    .attr("transform", "translate(0," + height + ")")
+                    .call(d3.axisBottom(x))
+                    .selectAll("text")
+                    .style("text-anchor", "end")
+                    .attr("transform", "rotate(-45) translate(-10,0)");
+
+                svg.append("g").attr("class", "y-axis").call(d3.axisLeft(y));
+
+                svg.append("text")
+                    .attr("class", "y-axis-label")
+                    .attr("transform", "rotate(-90)")
+                    .attr("x", -height / 2)
+                    .attr("y", -margin.left - 10)
+                    .attr("dy", "1em")
+                    .style("text-anchor", "middle")
+                    .text("Peak players all-time");
+            }
+
+            function createRatingChart(data, width, height, margin, x, y) {
+                var svgRating = d3
+                    .select("#ratingChart")
+                    .attr("width", width + margin.left + margin.right)
+                    .attr("height", height + margin.top + margin.bottom)
+                    .append("g")
+                    .attr(
+                        "transform",
+                        "translate(" + margin.left + "," + margin.top + ")"
+                    );
+
+                var maxRating = d3.max(data[0].gameInfo, function (d) {
+                    return d.score;
+                });
+
+                var yRating = d3
+                    .scaleLinear()
+                    .domain([0, maxRating])
+                    .range([height, 0]);
+
+                var barsRating = svgRating
+                    .selectAll(".bar")
+                    .data(data[0].gameInfo)
+                    .enter()
+                    .append("rect")
+                    .attr("class", "bar")
+                    .attr("x", function (d) {
+                        return x(d.name);
+                    })
+                    .attr("width", x.bandwidth())
+                    .attr("y", height)
+                    .attr("height", 0)
+                    .attr("id", function (d) {
+                        return "bar-" + d.appid;
+                    })
+                    .on("click", function (event, d) {
+                        d3.selectAll(".highlighted").classed(
+                            "highlighted",
+                            false
+                        );
+                        d3.select("#image-" + d.appid).classed(
+                            "highlighted",
+                            true
+                        );
+                        d3.select(this).classed("highlighted", true);
+                    })
+                    .transition()
+                    .duration(1000)
+                    .attr("y", function (d) {
+                        return yRating(d.score);
+                    })
+                    .attr("height", function (d) {
+                        return height - yRating(d.score);
+                    });
+
+                svgRating
+                    .append("g")
+                    .attr("class", "x-axis")
+                    .attr("transform", "translate(0," + height + ")")
+                    .call(d3.axisBottom(x))
+                    .selectAll("text")
+                    .style("text-anchor", "end")
+                    .attr("transform", "rotate(-45) translate(-10,0)");
+
+                svgRating
+                    .append("g")
+                    .attr("class", "y-axis")
+                    .call(d3.axisLeft(yRating));
+
+                svgRating
+                    .append("text")
+                    .attr("class", "y-axis-label")
+                    .attr("transform", "rotate(-90)")
+                    .attr("x", -height / 2)
+                    .attr("y", -margin.left)
+                    .attr("dy", "1em")
+                    .style("text-anchor", "middle")
+                    .text("Rating");
+            }
+
+            function createPieChart(data, width, height, margin) {
+                var colors = [
+                    "#767676",
+                    "#cc1708",
+                    "#0082ff",
+                    "#007b10",
+                    "#292929",
+                    "#e4c440",
+                    "#ad6721",
+                    "#667498",
+                    "#005c79",
+                    "#a232ff",
+                    "#8c0000",
+                ];
+                var personalWidth = width * 1.5;
+                var personalHeight = height * 1.5;
+                var radius = Math.min(personalWidth, personalHeight) / 2;
+                var labelRadius = radius * 0.7; // label position
+                var labelOuterRadius = radius * 1.5;
+
+                var personalData = data[0].mySteamInfo;
+
+                var totalPlaytime = d3.sum(personalData, function (d) {
+                    return d.playtime_forever;
+                });
+
+                var groupedData = personalData.reduce(function (
+                    result,
+                    current
+                ) {
+                    if (current.playtime_forever < 100) {
+                        let otherCategory = result.find(
+                            (entry) => entry.name === "Other"
+                        );
+                        if (!otherCategory) {
+                            otherCategory = {
+                                name: "Other",
+                                playtime_forever: 0,
+                            };
+                            result.push(otherCategory);
+                        }
+                        otherCategory.playtime_forever +=
+                            current.playtime_forever;
+                    } else {
+                        result.push(current);
+                    }
+                    return result;
+                },
+                []);
+
+                var pie = d3.pie().value(function (d) {
+                    return d.playtime_forever;
+                });
+
+                var arc = d3.arc().innerRadius(0).outerRadius(radius);
+
+                var labelArc = d3
+                    .arc()
+                    .innerRadius(labelRadius)
+                    .outerRadius(labelOuterRadius);
+
+                var personalChart = d3
+                    .select("#personalChart")
+                    .attr(
+                        "width",
+                        personalWidth + margin.left * 2 + margin.right * 2
+                    )
+                    .attr(
+                        "height",
+                        personalHeight + margin.top * 2 + margin.bottom * 2
+                    )
+                    .append("g")
+                    .attr(
+                        "transform",
+                        "translate(" +
+                            personalWidth / 1.5 +
+                            "," +
+                            personalHeight / 1.5 +
+                            ")"
+                    );
+
+                var slices = personalChart
+                    .selectAll(".slice")
+                    .data(pie(groupedData))
+                    .enter()
+                    .append("g")
+                    .attr("class", "slice");
+
+                function midAngle(d) {
+                    return d.startAngle + (d.endAngle - d.startAngle) / 2;
+                }
+
+                var graphSelection = d3.select("#graphSelection");
+                var idImageContainer =
+                    document.getElementById("imageContainer");
+                var idPersonalChart = document.getElementById("personalChart");
+                var textTransitionDuration = 2000;
+
+                slices
+                    .append("polyline")
+                    .attr("class", "line")
+                    .attr("stroke", "black")
+                    .style("fill", "none")
+                    .style("opacity", 0)
+                    .attr("points", function (d) {
+                        var posA = arc.centroid(d);
+                        var posB = labelArc.centroid(d);
+                        return [posA, posB];
+                    })
+                    .transition()
+                    .delay(textTransitionDuration)
+                    .style("opacity", 1);
+
+                slices
+                    .append("text")
+                    .attr("class", "label")
+                    .style("opacity", 0)
+                    .attr("transform", function (d) {
+                        var pos = labelArc.centroid(d);
+                        var rotAngle =
+                            (d.endAngle + d.startAngle) / 2 > Math.PI
+                                ? 15
+                                : -15;
+                        return (
+                            "translate(" + pos + ") rotate(" + rotAngle + ")"
+                        );
+                    })
+                    .attr("dy", ".35em")
+                    .attr("class", "pie-text")
+                    .attr("id", "pieText")
+                    .attr("text-anchor", function (d) {
+                        return (d.endAngle + d.startAngle) / 2 > Math.PI
+                            ? "end"
+                            : "start";
+                    })
+                    .text(function (d) {
+                        var percentage = (
+                            (d.data.playtime_forever / totalPlaytime) *
+                            100
+                        ).toFixed(2);
+                        return d.data.name + " (" + percentage + "%)";
+                    })
+                    .transition()
+                    .delay(textTransitionDuration)
+                    .style("opacity", 1);
+                slices
+                    .append("path")
+                    .attr("d", arc)
+                    .attr("fill", function (d, i) {
+                        return colors[i % colors.length];
+                    })
+                    .attr("d", arc)
+                    .transition()
+                    .duration(2000)
+                    .attrTween("d", function (d) {
+                        var interpolate = d3.interpolate(
+                            { startAngle: 0, endAngle: 0 },
+                            d
+                        );
+                        return function (t) {
+                            return arc(interpolate(t));
+                        };
+                    });
+            }
+        </script>
+    </body>
+</html>
